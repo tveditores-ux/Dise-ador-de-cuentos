@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unir Imágenes a PDF</title>
+<link rel="manifest" href="manifest.json">
+<style>
+body{font-family:sans-serif;background:#f5f5f5;margin:0;padding:20px}
+h1{font-size:22px}
+input,button{margin:8px 0;padding:10px;width:100%}
+button{background:#4a6cf7;color:white;border:none;border-radius:6px;font-size:16px}
+#preview img{max-width:100%;margin:10px 0;border:1px solid #ccc}
+</style>
+</head>
+<body>
+<h1>PWA Unir Imágenes a PDF</h1>
+
+<label>Imágenes del cuento (izquierda)</label>
+<input type="file" id="images" multiple accept="image/*">
+
+<label>Hoja del cuento (derecha)</label>
+<input type="file" id="template" accept="image/*">
+
+<button onclick="unir()">Unir imágenes</button>
+<button onclick="exportar()">Exportar PDF</button>
+
+<div id="preview"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+let combinadas=[];
+
+async function unir(){
+  combinadas=[];
+  document.getElementById('preview').innerHTML='';
+  const imgs=document.getElementById('images').files;
+  const tpl=document.getElementById('template').files[0];
+  if(!imgs.length||!tpl)return alert('Faltan archivos');
+
+  const tplImg=await loadImg(tpl);
+
+  for(let file of imgs){
+    const left=await loadImg(file);
+    const h=Math.min(left.height,tplImg.height);
+    const lw=left.width*h/left.height;
+    const rw=tplImg.width*h/tplImg.height;
+
+    const c=document.createElement('canvas');
+    c.width=lw+rw; c.height=h;
+    const ctx=c.getContext('2d');
+    ctx.drawImage(left,0,0,lw,h);
+    ctx.drawImage(tplImg,lw,0,rw,h);
+
+    const url=c.toDataURL('image/png');
+    combinadas.push(url);
+    const img=document.createElement('img'); img.src=url;
+    document.getElementById('preview').appendChild(img);
+  }
+}
+
+function exportar(){
+  if(!combinadas.length)return alert('Nada que exportar');
+  const {jsPDF}=window.jspdf;
+  const pdf=new jsPDF({orientation:'landscape',unit:'px'});
+
+  combinadas.forEach((img,i)=>{
+    if(i>0)pdf.addPage();
+    const w=pdf.internal.pageSize.getWidth();
+    const h=pdf.internal.pageSize.getHeight();
+    pdf.addImage(img,'PNG',0,0,w,h);
+  });
+  pdf.save('cuento.pdf');
+}
+
+function loadImg(file){
+  return new Promise(res=>{
+    const i=new Image();
+    i.onload=()=>res(i);
+    i.src=URL.createObjectURL(file);
+  })
+}
+</script>
+</body>
+</html>
