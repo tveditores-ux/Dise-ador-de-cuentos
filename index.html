@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>GracePrint Story Studio HD</title>
+    <title>GracePrint Story Studio - Fix Capitel</title>
     <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap" rel="stylesheet">
     <style>
         :root { --primary: #4a6cf7; --accent: #ff6b6b; }
@@ -23,24 +23,24 @@
 <body>
 
 <div class="container">
-    <h1 style="text-align:center; color: #1e293b;">📖 GracePrint Creator</h1>
+    <h1 style="text-align:center; color: #1e293b;">🎨 GracePrint Story Studio</h1>
     
     <div class="grid">
         <div class="panel">
-            <label>Imágenes Ilustrativas</label>
+            <label>1. Imágenes (Izquierda)</label>
             <input type="file" id="images" multiple accept="image/*">
-            <label style="margin-top:15px">Fondo de Hoja (Derecha)</label>
+            <label style="margin-top:15px">2. Fondo de Hoja (Derecha)</label>
             <input type="file" id="template" accept="image/*">
         </div>
         <div class="panel">
-            <label>Texto del Cuento (Un párrafo por página)</label>
-            <textarea id="storyText" placeholder="Pega aquí el cuento..."></textarea>
+            <label>3. Texto del Cuento (Un párrafo por página)</label>
+            <textarea id="storyText" placeholder="Pega el cuento aquí..."></textarea>
         </div>
     </div>
 
     <div class="actions">
-        <button class="btn-gen" onclick="generar()">✨ Generar Cuento</button>
-        <button class="btn-pdf" onclick="exportar()">📥 Descargar PDF HD</button>
+        <button class="btn-gen" onclick="generar()">✨ Generar Páginas</button>
+        <button class="btn-pdf" onclick="exportar()">📥 Exportar PDF HD</button>
     </div>
 
     <div id="preview"></div>
@@ -57,7 +57,7 @@ async function generar() {
     const parrafos = document.getElementById('storyText').value.split('\n').filter(p => p.trim() !== "");
     const preview = document.getElementById('preview');
 
-    if (!imgFiles.length || !tplFile) return alert("Sube las imágenes y la plantilla.");
+    if (!imgFiles.length || !tplFile) return alert("Faltan archivos.");
 
     paginas = [];
     preview.innerHTML = "";
@@ -65,7 +65,7 @@ async function generar() {
 
     for (let i = 0; i < imgFiles.length; i++) {
         const leftImg = await loadImg(imgFiles[i]);
-        const texto = parrafos[i] || "";
+        const textoCompleto = parrafos[i] || "";
 
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -73,43 +73,40 @@ async function generar() {
         const h = 2000; 
         const lw = (leftImg.width * h) / leftImg.height;
         const rw = (tplImg.width * h) / tplImg.height;
-        
         canvas.width = lw + rw;
         canvas.height = h;
 
-        // Dibujar imágenes
         ctx.drawImage(leftImg, 0, 0, lw, h);
         ctx.drawImage(tplImg, lw, 0, rw, h);
 
-        // --- RENDERIZADO DE TEXTO CON CAPITEL ---
-        if (texto.length > 0) {
+        if (textoCompleto.length > 0) {
             const marginX = lw + (rw * 0.12);
-            const marginY = h * 0.18;
+            const marginY = h * 0.20;
             const contentWidth = rw * 0.76;
 
-            // 1. Dibujar Letra Capitel
+            // --- LETRA CAPITAL ---
             ctx.fillStyle = "#1e3a8a"; 
-            ctx.font = "bold 240px 'Patrick Hand', cursive";
-            const capitel = texto.charAt(0).toUpperCase();
-            const resto = texto.slice(1);
+            ctx.font = "bold 220px 'Patrick Hand', cursive";
+            const capitel = textoCompleto.charAt(0).toUpperCase();
+            const restoTexto = textoCompleto.slice(1);
             
-            // Medir ancho de capitel para el hueco
-            const capitelMetrics = ctx.measureText(capitel);
-            const capitelWidth = capitelMetrics.width + 30; // 30px de separación
+            // Medir ancho real de la letra capital
+            const capitelWidth = ctx.measureText(capitel).width + 40; // Letra + espacio de seguridad
             
-            // Dibujar la letra inicial
-            ctx.fillText(capitel, marginX, marginY + 160);
+            // Dibujar capitel (un poco más abajo para que no flote tanto)
+            ctx.fillText(capitel, marginX, marginY + 140);
 
-            // 2. Dibujar resto del texto respetando el hueco
+            // --- RESTO DEL TEXTO ---
             ctx.fillStyle = "#334155";
-            ctx.font = "75px 'Patrick Hand', cursive";
+            ctx.font = "70px 'Patrick Hand', cursive";
             
-            renderFlowText(ctx, resto, marginX, marginY + 75, contentWidth, 90, capitelWidth, 2);
+            // Parámetros: ctx, texto, x, y, ancho_máximo, alto_línea, ancho_hueco_capitel, líneas_afectadas
+            wrapTextSmart(ctx, restoTexto, marginX, marginY + 60, contentWidth, 85, capitelWidth, 2);
         }
 
-        // --- LOGO GRACEPRINT ---
+        // --- LOGO ---
         ctx.font = "bold 40px Arial";
-        ctx.fillStyle = "rgba(0,0,0,0.25)";
+        ctx.fillStyle = "rgba(0,0,0,0.2)";
         ctx.textAlign = "center";
         ctx.fillText("GracePrint", lw + (rw/2), h - 100);
         ctx.textAlign = "left";
@@ -122,33 +119,33 @@ async function generar() {
     }
 }
 
-function renderFlowText(ctx, text, x, y, maxWidth, lineHeight, capWidth, capLines) {
+function wrapTextSmart(ctx, text, x, y, maxWidth, lineHeight, gapWidth, linesWithGap) {
     const words = text.split(' ');
     let line = '';
     let currentLineNum = 1;
-    let startX = x + capWidth; // Empieza a la derecha del capitel
-    let currentMaxW = maxWidth - capWidth;
+    let currentY = y;
 
     for (let n = 0; n < words.length; n++) {
         let testLine = line + words[n] + ' ';
+        
+        // Determinar el margen izquierdo y ancho disponible
+        let currentX = (currentLineNum <= linesWithGap) ? (x + gapWidth) : x;
+        let currentMaxW = (currentLineNum <= linesWithGap) ? (maxWidth - gapWidth) : maxWidth;
+        
         let metrics = ctx.measureText(testLine);
 
         if (metrics.width > currentMaxW && n > 0) {
-            ctx.fillText(line, startX, y);
+            ctx.fillText(line, currentX, currentY);
             line = words[n] + ' ';
-            y += lineHeight;
+            currentY += lineHeight;
             currentLineNum++;
-            
-            // Si ya pasamos las líneas que ocupa el capitel, volvemos al margen izquierdo
-            if (currentLineNum > capLines) {
-                startX = x;
-                currentMaxW = maxWidth;
-            }
         } else {
             line = testLine;
         }
     }
-    ctx.fillText(line, startX, y);
+    // Dibujar la última línea sobrante
+    let finalX = (currentLineNum <= linesWithGap) ? (x + gapWidth) : x;
+    ctx.fillText(line, finalX, currentY);
 }
 
 function loadImg(file) {
@@ -160,7 +157,7 @@ function loadImg(file) {
 }
 
 function exportar() {
-    if (!paginas.length) return alert("Genera el cuento primero.");
+    if (!paginas.length) return;
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [paginas[0].w, paginas[0].h] });
     paginas.forEach((p, i) => {
