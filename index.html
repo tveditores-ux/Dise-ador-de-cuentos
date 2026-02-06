@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Unir Imágenes a PDF</title>
+<title>Unir Imágenes a PDF Alta Definición</title>
 <link rel="manifest" href="manifest.json">
 <style>
 body{font-family:sans-serif;background:#f5f5f5;margin:0;padding:20px}
@@ -14,7 +14,7 @@ button{background:#4a6cf7;color:white;border:none;border-radius:6px;font-size:16
 </style>
 </head>
 <body>
-<h1>PWA Unir Imágenes a PDF</h1>
+<h1>PWA Unir Imágenes a PDF Alta Definición</h1>
 
 <label>Imágenes del cuento (izquierda)</label>
 <input type="file" id="images" multiple accept="image/*">
@@ -23,7 +23,7 @@ button{background:#4a6cf7;color:white;border:none;border-radius:6px;font-size:16
 <input type="file" id="template" accept="image/*">
 
 <button onclick="unir()">Unir imágenes</button>
-<button onclick="exportar()">Exportar PDF</button>
+<button onclick="exportar()">Exportar PDF HD</button>
 
 <div id="preview"></div>
 
@@ -42,7 +42,8 @@ async function unir(){
 
   for(let file of imgs){
     const left=await loadImg(file);
-    const h=Math.min(left.height,tplImg.height);
+    const scale=2; // Alta definición: 2x tamaño canvas
+    const h=Math.min(left.height,tplImg.height)*scale;
     const lw=left.width*h/left.height;
     const rw=tplImg.width*h/tplImg.height;
 
@@ -62,7 +63,7 @@ async function unir(){
 function exportar(){
   if(!combinadas.length)return alert('Nada que exportar');
   const {jsPDF}=window.jspdf;
-  const pdf=new jsPDF({orientation:'landscape',unit:'px'});
+  const pdf=new jsPDF({orientation:'landscape',unit:'pt',format:[combinadas[0].width||2000, combinadas[0].height||1400]});
 
   combinadas.forEach((img,i)=>{
     if(i>0)pdf.addPage();
@@ -70,7 +71,7 @@ function exportar(){
     const h=pdf.internal.pageSize.getHeight();
     pdf.addImage(img,'PNG',0,0,w,h);
   });
-  pdf.save('cuento.pdf');
+  pdf.save('cuento_HD.pdf');
 }
 
 function loadImg(file){
