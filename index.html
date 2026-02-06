@@ -6,146 +6,159 @@
     <title>Creador de Cuentos GracePrint</title>
     <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap" rel="stylesheet">
     <style>
-        :root { --primary: #4a6cf7; --accent: #ff6b6b; }
-        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 900px; margin: auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        :root { --primary: #4a6cf7; --accent: #ff6b6b; --bg: #fdfdfd; }
+        body { font-family: 'Segoe UI', sans-serif; background: #eef2f7; margin: 0; padding: 20px; }
+        .container { max-width: 1000px; margin: auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
         
-        h1 { text-align: center; color: var(--primary); font-size: 24px; }
-        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        h1 { text-align: center; color: var(--primary); margin-bottom: 25px; font-weight: 800; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         
-        label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
-        input, textarea, button { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; }
+        .panel { background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px dashed #cbd5e1; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; color: #475569; }
         
-        textarea { height: 100px; font-family: 'Patrick Hand', cursive; font-size: 18px; resize: vertical; }
+        input[type="file"] { margin-bottom: 15px; }
+        textarea { 
+            width: 100%; height: 150px; padding: 15px; border-radius: 10px; border: 1px solid #ddd;
+            font-family: 'Patrick Hand', cursive; font-size: 18px; box-sizing: border-box;
+            background: #fff; line-height: 1.4;
+        }
         
-        button { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
-        button:hover { background: #3553ce; }
-        .btn-export { background: var(--accent); }
-        .btn-export:hover { background: #ee5252; }
+        .actions { margin-top: 20px; display: flex; gap: 10px; }
+        button { flex: 1; padding: 15px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 16px; }
+        .btn-gen { background: var(--primary); color: white; }
+        .btn-pdf { background: var(--accent); color: white; }
+        button:hover { opacity: 0.9; transform: translateY(-1px); }
 
-        #preview { margin-top: 30px; }
-        #preview img { max-width: 100%; border-radius: 5px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); margin-bottom: 20px; border: 1px solid #eee; }
+        #preview { margin-top: 40px; border-top: 2px solid #eee; padding-top: 20px; }
+        #preview img { max-width: 100%; border-radius: 8px; margin-bottom: 25px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
         
-        .hidden-canvas { display: none; }
+        .logo-footer { text-align: center; font-size: 12px; color: #94a3b8; margin-top: 20px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>🎨 GracePrint Story Maker</h1>
+    <h1>📖 GracePrint Story Studio</h1>
     
-    <div class="controls">
-        <div>
-            <label>🖼️ Imágenes del cuento (Lado izquierdo)</label>
+    <div class="grid">
+        <div class="panel">
+            <label>1. Ilustraciones (Izquierda)</label>
             <input type="file" id="images" multiple accept="image/*">
-        </div>
-        <div>
-            <label>📜 Fondo de la hoja (Lado derecho)</label>
+            <label>2. Papel Tapiz/Hoja (Derecha)</label>
             <input type="file" id="template" accept="image/*">
+        </div>
+        <div class="panel">
+            <label>3. Pega el texto aquí (un párrafo por página)</label>
+            <textarea id="storyText" placeholder="Pega tu cuento aquí...&#10;&#10;Ejemplo:&#10;Había una vez un dragón... (Página 1)&#10;&#10;Entonces llegó el caballero... (Página 2)"></textarea>
         </div>
     </div>
 
-    <label>✍️ Escribe el texto del cuento (usa un salto de línea por cada página):</label>
-    <textarea id="storyText" placeholder="Había una vez...&#10;En un bosque lejano..."></textarea>
-    
-    <button onclick="generarCuento()">✨ Generar Páginas del Cuento</button>
-    <button class="btn-export" onclick="exportarPDF()">📥 Exportar PDF Alta Definición</button>
+    <div class="actions">
+        <button class="btn-gen" onclick="generarCuento()">✨ Crear Páginas</button>
+        <button class="btn-pdf" onclick="exportarPDF()">📥 Descargar PDF HD</button>
+    </div>
 
     <div id="preview"></div>
+    <div class="logo-footer">Powered by GracePrint</div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <script>
-let paginasGeneradas = [];
+let paginasData = [];
 
 async function generarCuento() {
     const imgFiles = document.getElementById('images').files;
     const templateFile = document.getElementById('template').files[0];
-    const textContent = document.getElementById('storyText').value.split('\n').filter(t => t.trim() !== "");
+    // Dividimos el texto pegado por párrafos
+    const párrafos = document.getElementById('storyText').value.split('\n').filter(p => p.trim() !== "");
     const previewDiv = document.getElementById('preview');
 
-    if (!imgFiles.length || !templateFile) return alert('Por favor sube las imágenes y el fondo.');
-    
-    paginasGeneradas = [];
-    previewDiv.innerHTML = '<h3>Vista Previa:</h3>';
+    if (!imgFiles.length || !templateFile) return alert('Por favor, selecciona las imágenes y el fondo.');
+
+    paginasData = [];
+    previewDiv.innerHTML = '<h2>Vista de Páginas:</h2>';
 
     const tplImg = await loadImg(templateFile);
 
-    // Procesamos cada imagen subida
     for (let i = 0; i < imgFiles.length; i++) {
         const leftImg = await loadImg(imgFiles[i]);
-        const textoPagina = textContent[i] || ""; // Si no hay más texto, queda vacío
+        const texto = párrafos[i] || ""; 
 
-        // Configuración de Canvas HD (300 DPI aprox para A4 landscape)
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         
-        // Definimos un tamaño estándar alto (ej. 3508x2480px es A4 a 300dpi)
-        // Pero para mantener proporciones usaremos el alto de la plantilla
-        const h = 1800; 
+        // Alta resolución (4000px de ancho total para calidad premium)
+        const h = 2000; 
         const lw = (leftImg.width * h) / leftImg.height;
         const rw = (tplImg.width * h) / tplImg.height;
         
         canvas.width = lw + rw;
         canvas.height = h;
 
-        // 1. Dibujar imagen izquierda
+        // Dibujar Ilustración
         ctx.drawImage(leftImg, 0, 0, lw, h);
-
-        // 2. Dibujar fondo de hoja derecha
+        // Dibujar Hoja de texto
         ctx.drawImage(tplImg, lw, 0, rw, h);
 
-        // 3. Configurar texto estilo infantil
-        const padding = rw * 0.15; // 15% de margen
-        const textWidth = rw - (padding * 2);
-        const startX = lw + padding;
-        const startY = h * 0.25;
+        // --- ESTILO DE TEXTO INFANTIL ---
+        const paddingH = rw * 0.12;
+        const paddingV = h * 0.15;
+        const maxTextWidth = rw - (paddingH * 2);
+        
+        if (texto.length > 0) {
+            // 1. Letra Capital
+            ctx.fillStyle = "#1a365d"; // Azul oscuro elegante
+            ctx.font = "bold 200px 'Patrick Hand', cursive";
+            const primeraLetra = texto.charAt(0).toUpperCase();
+            const restoDelTexto = texto.slice(1);
+            
+            ctx.fillText(primeraLetra, lw + paddingH, paddingV + 120);
 
-        // Dibujar Letra Capital
-        if (textoPagina.length > 0) {
-            ctx.fillStyle = "#2c3e50";
-            ctx.font = "bold 160px 'Patrick Hand', cursive";
-            const firstLetter = textoPagina.charAt(0).toUpperCase();
-            const restText = textoPagina.slice(1);
-            
-            ctx.fillText(firstLetter, startX, startY);
-            
-            // Texto normal
+            // 2. Resto del texto
             ctx.font = "70px 'Patrick Hand', cursive";
-            wrapText(ctx, restText, startX + 90, startY, textWidth - 80, 85);
+            ctx.fillStyle = "#334155";
+            
+            // Calculamos el espacio que ocupa la letra capital para mover el inicio del texto
+            const capWidth = ctx.measureText(primeraLetra).width + 20;
+            wrapText(ctx, restoDelTexto, lw + paddingH + capWidth, paddingV + 80, maxTextWidth - capWidth, 85, lw + paddingH, maxTextWidth);
         }
 
-        // 4. Agregar Logo GracePrint al centro inferior derecho
-        ctx.font = "bold 40px Arial";
-        ctx.fillStyle = "rgba(0,0,0,0.3)";
+        // --- LOGO GRACEPRINT ---
+        ctx.font = "bold 45px Arial";
+        ctx.fillStyle = "rgba(0,0,0,0.2)"; // Color suave tipo marca de agua
         ctx.textAlign = "center";
-        ctx.fillText("GracePrint", lw + (rw / 2), h - 60);
-        ctx.textAlign = "left"; // reset
+        ctx.fillText("GracePrint", lw + (rw / 2), h - 80);
+        ctx.textAlign = "left"; 
 
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-        paginasGeneradas.push({url: dataUrl, w: canvas.width, h: canvas.height});
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+        paginasData.push({url: dataUrl, w: canvas.width, h: canvas.height});
         
-        const previewImg = document.createElement('img');
-        previewImg.src = dataUrl;
-        previewDiv.appendChild(previewImg);
+        const pImg = document.createElement('img');
+        pImg.src = dataUrl;
+        previewDiv.appendChild(pImg);
     }
 }
 
-function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+// Función para envolver texto correctamente
+function wrapText(ctx, text, x, y, maxWidth, lineHeight, originalX, fullWidth) {
     const words = text.split(' ');
     let line = '';
+    let firstLine = true;
 
     for (let n = 0; n < words.length; n++) {
         let testLine = line + words[n] + ' ';
+        let currentMaxWidth = firstLine ? maxWidth : fullWidth;
         let metrics = ctx.measureText(testLine);
-        if (metrics.width > maxWidth && n > 0) {
+        
+        if (metrics.width > currentMaxWidth && n > 0) {
             ctx.fillText(line, x, y);
             line = words[n] + ' ';
             y += lineHeight;
-            x = x - 90; // Volvemos al margen original después de la letra capital
-            // Ajuste simple: después de la primera línea, el ancho permitido vuelve a ser el total
-            maxWidth = maxWidth + 80; 
+            if (firstLine) {
+                x = originalX; // Regresa al margen izquierdo tras la letra capital
+                firstLine = false;
+            }
         } else {
             line = testLine;
         }
@@ -162,23 +175,20 @@ function loadImg(file) {
 }
 
 function exportarPDF() {
-    if (!paginasGeneradas.length) return alert('Primero genera las páginas.');
+    if (!paginasData.length) return alert('Primero genera las páginas.');
     const { jsPDF } = window.jspdf;
-    
-    // El primer folio define el tamaño
-    const first = paginasGeneradas[0];
     const pdf = new jsPDF({
         orientation: 'landscape',
         unit: 'px',
-        format: [first.w, first.h]
+        format: [paginasData[0].w, paginasData[0].h]
     });
 
-    paginasGeneradas.forEach((pag, i) => {
+    paginasData.forEach((pag, i) => {
         if (i > 0) pdf.addPage([pag.w, pag.h], 'landscape');
         pdf.addImage(pag.url, 'JPEG', 0, 0, pag.w, pag.h);
     });
 
-    pdf.save('Mi_Cuento_GracePrint.pdf');
+    pdf.save('Cuento_Personalizado_GracePrint.pdf');
 }
 </script>
 </body>
